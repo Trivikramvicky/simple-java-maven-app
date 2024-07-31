@@ -1,14 +1,43 @@
 pipeline {
-        agent none
-        stages {
-         
-          stage("build & SonarQube Analysis") {
-            agent any
+    agent any
+
+    environment {
+        SONARQUBE_SERVER = 'Sonar_Server'
+        SONARQUBE_TOKEN = credentials('sonar-token-id')
+    }
+
+    tools {
+        maven 'Maven 3.8.4' // The name you configured in Jenkins
+    }
+
+    stages {
+        stage('Checkout') {
             steps {
-              withSonarQubeEnv('Sonar_Server') {
-                sh 'mvn clean package sonar:sonar'
-              }
+                checkout scm
             }
-          }
         }
-      }
+
+        stage('Build and SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarQube Scanner'
+                    withSonarQubeEnv(SONARQUBE_SERVER) {
+                        sh "${tool 'Maven 3.8.4'}/bin/mvn clean package sonar:sonar"
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                waitForQualityGate abortPipeline: true
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
